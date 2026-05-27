@@ -1,95 +1,108 @@
-import { load } from "cheerio"
-
-const BASE_URL = "https://animeverse.to"
-
-export interface SearchResult {
-  id: string
-  title: string
-  image?: string
+function Provider() {
+    this.base = "https://animeverse.to"
 }
 
-export interface Episode {
-  id: string
-  number: number
+/**
+ * REQUIRED: Settings
+ */
+Provider.prototype.getSettings = function () {
+    return {
+        type: "main",
+        supportsAdult: false
+    }
 }
 
-export interface VideoSource {
-  url: string
-  quality?: string
+/**
+ * SEARCH ANIME
+ */
+Provider.prototype.search = function (query) {
+    var url = this.base + "/search?q=" + encodeURIComponent(query)
+
+    return fetch(url)
+        .then(function (res) { return res.text() })
+        .then(function (html) {
+
+            var results = []
+            var regex = /href="(\/anime\/[^"]+)".*?>([^<]+)</g
+            var match
+
+            while ((match = regex.exec(html)) !== null) {
+                results.push({
+                    id: match[1],
+                    title: match[2].trim()
+                })
+            }
+
+            return results
+        })
 }
 
-export default class AnimeVerseProvider {
+/**
+ * GET EPISODES
+ */
+Provider.prototype.getEpisodes = function (anime) {
+    var url = this.base + anime.id
 
-  async search(query: string): Promise<SearchResult[]> {
-    const res = await fetch(
-      `${BASE_URL}/search?keyword=${encodeURIComponent(query)}`
-    )
+    return fetch(url)
+        .then(function (res) { return res.text() })
+        .then(function (html) {
 
-    const html = await res.text()
-    const $ = load(html)
+            var episodes = []
+            var regex = /href="(\/episode\/[^"]+)".*?(\d+)/g
+            var match
 
-    const results: SearchResult[] = []
+            while ((match = regex.exec(html)) !== null) {
+                episodes.push({
+                    id: match[1],
+                    number: Number(match[2])
+                })
+            }
 
-    $(".flw-item").each((_, el) => {
-      const link = $(el).find("a").attr("href") || ""
-      const title = $(el).find(".film-name").text().trim()
-      const image = $(el).find("img").attr("data-src")
+            return episodes
+        })
+}
 
-      const id = link.split("/").pop() || ""
+/**
+ * GET STREAM URL
+ */
+Provider.prototype.getStreamUrl = function (episode) {
+    var url = this.base + episode.id
 
-      results.push({
-        id,
-        title,
-        image
-      })
-    })
+    return fetch(url)
+        .then(function (res) { return res.text() })
+        .then(function (html) {
 
-    return results
-  }
+            var sources = []
 
-  async getEpisodes(animeId: string): Promise<Episode[]> {
-    const res = await fetch(`${BASE_URL}/watch/${animeId}`)
-    const html = await res.text()
+            // VidNest iframe (PRIMARY SOURCE)
+            var iframeMatch = html.match(/vidnest\.fun\/anime\/[^"']+/)
+            if (iframeMatch) {
+                sources.push({
+                    url: iframeMatch[0],
+                    quality: "VidNest",
+                    isIframe: true
+                })
+            }
 
-    const $ = load(html)
+            // API fallback
+            var apiMatch = html.match(/\/api\/v1\/anime\/[^"']+stream\/\d+/)
+            if (apiMatch) {
+                sources.push({
+                    url: "https://animeverse.to" + apiMatch[0],
+                    quality: "API_STREAM"
+                })
+            }
 
-    const episodes: Episode[] = []
+            // Generic iframe fallback
+            var iframe = html.match(/iframe.*src="([^"]+)"/)
+            if (iframe) {
+                sources.push({
+                    url: iframe[1],
+                    quality: "IFRAME",
+                    isIframe: true
+                })
+            }
 
-    $(".ss-list a").each((_, el) => {
-      const epId = $(el).attr("data-id") || ""
-      const number =
-        parseInt($(el).attr("data-number") || "0")
-
-      episodes.push({
-        id: epId,
-        number
-      })
-    })
-
-    return episodes.reverse()
-  }
-
-  async getSources(episodeId: string): Promise<VideoSource[]> {
-    const ajaxUrl =
-      `${BASE_URL}/ajax/episode/sources?id=${episodeId}`
-
-    const res = await fetch(ajaxUrl, {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest"
-      }
-    })
-
-    const data = await res.json()
-
-    const sourceLink = data.link
-
-    if (!sourceLink) return []
-
-    return [
-      {
-        url: sourceLink,
-        quality: "auto"
-      }
-    ]
-  }
+            return sources
+        })
 }

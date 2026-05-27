@@ -6,5 +6,5 @@
   "type": "onlinestream-provider",
   "author": "zzymnas",
   "description": "AnimeVerse provider for Seanime",
-  "payload": "provider.js"
+  "payloadURL": "https://raw.githubusercontent.com/Zzymnas/Animeverse/refs/heads/main/Aniimeverse/provider.js"
 }

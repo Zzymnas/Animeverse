@@ -1,10 +1,10 @@
 {
   "id": "animeverse",
   "name": "Animeverse",
-  "description": "Animeverse streaming provider",
+  "description": "Animeverse streaming provider for Seanime",
   "version": "1.0.0",
   "author": "zzymnas",
   "type": "content-provider",
   "language": "javascript",
-  "payloadURI": "https://raw.githubusercontent.com/Zzymnas/Animeverse/refs/heads/main/Aniimeverse/provider.js"
+  "payload": 1
 }

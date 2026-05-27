@@ -9,4 +9,5 @@
   "author": "zzymnas",
   "description": "AnimeVerse provider for Seanime",
   "nsfw": false
+  "payloadURI": "https://raw.githubusercontent.com/Zzymnas/Animeverse/refs/heads/main/Aniimeverse/provider.js"
 }

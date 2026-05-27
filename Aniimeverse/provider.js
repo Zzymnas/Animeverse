@@ -1,70 +1,108 @@
-const BASE_URL = "https://animeverse.to";
+function Provider() {
+    this.base = "https://animeverse.to"
+}
 
-export default {
-  id: "animeverse",
-
-  name: "AnimeVerse",
-
-  async search(query) {
-    const res = await fetch(
-      `${BASE_URL}/search?keyword=${encodeURIComponent(query)}`
-    );
-
-    const html = await res.text();
-
-    const results = [];
-
-    const regex =
-      /href="\/watch\/([^"]+)".*?<img[^>]+(?:data-src|src)="([^"]+)".*?alt="([^"]+)"/gs;
-
-    let match;
-
-    while ((match = regex.exec(html)) !== null) {
-      results.push({
-        id: match[1],
-        title: match[3],
-        image: match[2],
-      });
+/**
+ * REQUIRED: Settings
+ */
+Provider.prototype.getSettings = function () {
+    return {
+        type: "main",
+        supportsAdult: false
     }
+}
 
-    return results;
-  },
+/**
+ * SEARCH ANIME
+ */
+Provider.prototype.search = function (query) {
+    var url = this.base + "/search?q=" + encodeURIComponent(query)
 
-  async getEpisodes(animeId) {
-    const res = await fetch(`${BASE_URL}/watch/${animeId}`);
-    const html = await res.text();
+    return fetch(url)
+        .then(function (res) { return res.text() })
+        .then(function (html) {
 
-    const episodes = [];
+            var results = []
+            var regex = /href="(\/anime\/[^"]+)".*?>([^<]+)</g
+            var match
 
-    const regex =
-      /data-number="([^"]+)".*?data-id="([^"]+)"/gs;
+            while ((match = regex.exec(html)) !== null) {
+                results.push({
+                    id: match[1],
+                    title: match[2].trim()
+                })
+            }
 
-    let match;
+            return results
+        })
+}
 
-    while ((match = regex.exec(html)) !== null) {
-      episodes.push({
-        id: match[2],
-        number: parseFloat(match[1]),
-      });
-    }
+/**
+ * GET EPISODES
+ */
+Provider.prototype.getEpisodes = function (anime) {
+    var url = this.base + anime.id
 
-    return episodes.reverse();
-  },
+    return fetch(url)
+        .then(function (res) { return res.text() })
+        .then(function (html) {
 
-  async getSources(episodeId) {
-    const res = await fetch(
-      `${BASE_URL}/ajax/episode/sources?id=${episodeId}`
-    );
+            var episodes = []
+            var regex = /href="(\/episode\/[^"]+)".*?(\d+)/g
+            var match
 
-    const data = await res.json();
+            while ((match = regex.exec(html)) !== null) {
+                episodes.push({
+                    id: match[1],
+                    number: Number(match[2])
+                })
+            }
 
-    if (!data.link) return [];
+            return episodes
+        })
+}
 
-    return [
-      {
-        url: data.link,
-        quality: "auto",
-      },
-    ];
-  },
-};
+/**
+ * GET STREAM URL
+ */
+Provider.prototype.getStreamUrl = function (episode) {
+    var url = this.base + episode.id
+
+    return fetch(url)
+        .then(function (res) { return res.text() })
+        .then(function (html) {
+
+            var sources = []
+
+            // VidNest iframe (PRIMARY SOURCE)
+            var iframeMatch = html.match(/vidnest\.fun\/anime\/[^"']+/)
+            if (iframeMatch) {
+                sources.push({
+                    url: iframeMatch[0],
+                    quality: "VidNest",
+                    isIframe: true
+                })
+            }
+
+            // API fallback
+            var apiMatch = html.match(/\/api\/v1\/anime\/[^"']+stream\/\d+/)
+            if (apiMatch) {
+                sources.push({
+                    url: "https://animeverse.to" + apiMatch[0],
+                    quality: "API_STREAM"
+                })
+            }
+
+            // Generic iframe fallback
+            var iframe = html.match(/iframe.*src="([^"]+)"/)
+            if (iframe) {
+                sources.push({
+                    url: iframe[1],
+                    quality: "IFRAME",
+                    isIframe: true
+                })
+            }
+
+            return sources
+        })
+}

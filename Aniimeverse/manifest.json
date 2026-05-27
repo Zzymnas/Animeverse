@@ -6,5 +6,5 @@
   "author": "zzymnas",
   "type": "content-provider",
   "language": "javascript",
-  "payloadurl": "https://raw.githubusercontent.com/Zzymnas/Animeverse/refs/heads/main/Aniimeverse/provider.js"
+  "payloadURI": "https://raw.githubusercontent.com/Zzymnas/Animeverse/refs/heads/main/Aniimeverse/provider.js"
 }

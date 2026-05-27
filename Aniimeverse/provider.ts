@@ -1,108 +1,111 @@
-function Provider() {
-    this.base = "https://animeverse.to"
-}
+/// <reference path="./online-streaming-provider.d.ts" />
 
-/**
- * REQUIRED: Settings
- */
-Provider.prototype.getSettings = function () {
-    return {
-        type: "main",
-        supportsAdult: false
+class Provider {
+
+    base = "https://animeverse.to"
+
+    getSettings(): Settings {
+        return {
+            episodeServers: ["vidnest"],
+            supportsDub: true,
+        }
     }
-}
 
-/**
- * SEARCH ANIME
- */
-Provider.prototype.search = function (query) {
-    var url = this.base + "/search?q=" + encodeURIComponent(query)
+    async search(query: SearchOptions): Promise<SearchResult[]> {
 
-    return fetch(url)
-        .then(function (res) { return res.text() })
-        .then(function (html) {
+        const res = await fetch(this.base + "/search?q=" + encodeURIComponent(query.query))
+        const html = await res.text()
 
-            var results = []
-            var regex = /href="(\/anime\/[^"]+)".*?>([^<]+)</g
-            var match
+        const results: SearchResult[] = []
+        const regex = /href="(\/anime\/[^"]+)".*?>([^<]+)</g
+        let match
 
-            while ((match = regex.exec(html)) !== null) {
-                results.push({
-                    id: match[1],
-                    title: match[2].trim()
-                })
-            }
+        while ((match = regex.exec(html)) !== null) {
+            results.push({
+                id: match[1],
+                title: match[2].trim(),
+                url: this.base + match[1],
+                subOrDub: query.dub ? "dub" : "sub",
+            })
+        }
 
-            return results
-        })
-}
+        return results
+    }
 
-/**
- * GET EPISODES
- */
-Provider.prototype.getEpisodes = function (anime) {
-    var url = this.base + anime.id
+    async findEpisodes(id: string): Promise<EpisodeDetails[]> {
 
-    return fetch(url)
-        .then(function (res) { return res.text() })
-        .then(function (html) {
+        const res = await fetch(this.base + id)
+        const html = await res.text()
 
-            var episodes = []
-            var regex = /href="(\/episode\/[^"]+)".*?(\d+)/g
-            var match
+        const episodes: EpisodeDetails[] = []
+        const regex = /href="(\/episode\/[^"]+)".*?(\d+)/g
+        let match
 
-            while ((match = regex.exec(html)) !== null) {
-                episodes.push({
-                    id: match[1],
-                    number: Number(match[2])
-                })
-            }
+        while ((match = regex.exec(html)) !== null) {
+            episodes.push({
+                id: match[1],
+                number: Number(match[2]),
+                url: this.base + match[1],
+            })
+        }
 
-            return episodes
-        })
-}
+        return episodes
+    }
 
-/**
- * GET STREAM URL
- */
-Provider.prototype.getStreamUrl = function (episode) {
-    var url = this.base + episode.id
+    async findEpisodeServer(episode: EpisodeDetails, _server: string): Promise<EpisodeServer> {
 
-    return fetch(url)
-        .then(function (res) { return res.text() })
-        .then(function (html) {
+        const res = await fetch(episode.url)
+        const html = await res.text()
 
-            var sources = []
+        const videoSources: VideoSource[] = []
+        const subtitles: VideoSubtitle[] = []
 
-            // VidNest iframe (PRIMARY SOURCE)
-            var iframeMatch = html.match(/vidnest\.fun\/anime\/[^"']+/)
-            if (iframeMatch) {
-                sources.push({
-                    url: iframeMatch[0],
-                    quality: "VidNest",
-                    isIframe: true
-                })
-            }
+        // =========================
+        // VIDNEST (MAIN SOURCE)
+        // =========================
+        const vidnest = html.match(/https:\/\/vidnest\.fun\/anime\/[^"']+/)
 
-            // API fallback
-            var apiMatch = html.match(/\/api\/v1\/anime\/[^"']+stream\/\d+/)
-            if (apiMatch) {
-                sources.push({
-                    url: "https://animeverse.to" + apiMatch[0],
-                    quality: "API_STREAM"
-                })
-            }
+        if (vidnest) {
+            videoSources.push({
+                url: vidnest[0],
+                type: "m3u8",
+                quality: "VidNest",
+                subtitles: []
+            })
+        }
 
-            // Generic iframe fallback
-            var iframe = html.match(/iframe.*src="([^"]+)"/)
-            if (iframe) {
-                sources.push({
-                    url: iframe[1],
-                    quality: "IFRAME",
-                    isIframe: true
-                })
-            }
+        // =========================
+        // IFRAME FALLBACK
+        // =========================
+        const iframe = html.match(/iframe.*src="([^"]+)"/)
 
-            return sources
-        })
+        if (iframe) {
+            videoSources.push({
+                url: iframe[1],
+                type: "unknown",
+                quality: "iframe",
+                subtitles: []
+            })
+        }
+
+        // =========================
+        // OPTIONAL: DIRECT STREAM API (if ever exposed)
+        // =========================
+        const api = html.match(/\/api\/v1\/anime\/[^"']+stream\/\d+/)
+
+        if (api) {
+            videoSources.push({
+                url: this.base + api[0],
+                type: "unknown",
+                quality: "api",
+                subtitles: []
+            })
+        }
+
+        return {
+            server: "vidnest",
+            headers: {},
+            videoSources
+        }
+    }
 }

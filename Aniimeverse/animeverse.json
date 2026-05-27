@@ -1,0 +1,12 @@
+{
+  "id": "animeverse",
+  "name": "AnimeVerse",
+  "version": "1.0.0",
+  "baseUrl": "https://animeverse.to",
+  "lang": "en",
+  "type": "anime",
+  "icon": "https://animeverse.to/favicon.ico",
+  "author": "zzymnas",
+  "description": "AnimeVerse provider for Seanime",
+  "nsfw": false
+}

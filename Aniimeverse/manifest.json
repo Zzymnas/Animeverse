@@ -1,0 +1,10 @@
+{
+  "id": "animeverse",
+  "name": "AnimeVerse",
+  "version": "1.0.0",
+  "language": "typescript",
+  "type": "onlinestream-provider",
+  "author": "zzymnas",
+  "description": "AnimeVerse provider for Seanime",
+  "payload": "provider.js"
+}
